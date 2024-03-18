@@ -1,16 +1,27 @@
-module "network" {
-  source   = "./network"
-  vpc_id   = var.vpc_id
+variable "subnets" {
+  description = "List of subnet IDs for the EKS cluster"
+  type        = list(string)
 }
 
-module "security" {
-  source   = "./security"
-  vpc_id   = var.vpc_id
+variable "cluster_name" {
+  description = "The name of the EKS cluster"
+  type        = string
 }
 
-module "eks" {
-  source   = "./eks"
-  // Assuming your EKS module also requires vpc_id or related resources
-  vpc_id   = var.vpc_id
-  // You may also need to pass subnets or security groups depending on your EKS module's requirements
+module "eks-cluster" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "20.5.0" # Ensure compatibility with your Terraform version and EKS features needed
+
+  cluster_name = var.cluster_name
+  vpc_id       = "vpc-0d901141117fda04f"
+  subnets      = var.subnets
+
+  eks_managed_node_groups = {
+    eks_nodes = {
+      desired_capacity = 2
+      max_capacity     = 3
+      min_capacity     = 1
+      instance_type    = "m5.large"
+    }
+  }
 }
