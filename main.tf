@@ -10,9 +10,8 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  cluster_name = "valuelens-chatbot-poc"
+  cluster_name = "recommendation-engine-poc"
 }
-
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
@@ -110,3 +109,48 @@ resource "aws_ecr_repository" "repository" {
   name = "valuelens_chatbot"
 }
 
+# Redis Configuration
+resource "aws_security_group" "redis_security_group" {
+  name        = "${local.cluster_name}-redis-security-group"
+  description = "Allow inbound traffic for Redis"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Adjust this to your security requirements
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${local.cluster_name}"
+  }
+}
+
+resource "aws_elasticache_subnet_group" "redis_subnet_group" {
+  name       = "redis-subnet-group"
+  subnet_ids = module.vpc.private_subnets
+}
+
+resource "aws_elasticache_cluster" "redis_cluster" {
+  cluster_id           = "${local.cluster_name}my-redis-cluster"
+  engine               = "redis"
+  node_type            = "cache.t3.micro"
+  num_cache_nodes      = 1
+  parameter_group_name = "default.redis6.x"
+  engine_version       = "6.x"
+  port                 = 6379
+  subnet_group_name    = aws_elasticache_subnet_group.redis_subnet_group.name
+  security_group_ids   = [aws_security_group.redis_security_group.id]
+
+  tags = {
+    Name = "${local.cluster_name}"
+  }
+}
